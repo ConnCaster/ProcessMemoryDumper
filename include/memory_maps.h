@@ -12,21 +12,20 @@
 #include <vector>
 #include <string>
 
-namespace edr {
+namespace process_memory_dump {
 
     class MemoryMapsParser {
     public:
         // Парсинг /proc/[pid]/maps
-        static std::optional<std::vector<MemoryRegion>> parse(pid_t pid);
+        static std::optional<std::vector<MemoryRegion>> Parse(pid_t pid);
 
         // Фильтрация регионов (например, только читаемые)
-        static std::vector<MemoryRegion> filterReadable(
-            const std::vector<MemoryRegion>& regions);
+        static std::vector<MemoryRegion> FilterReadable(const std::vector<MemoryRegion>& regions);
 
         // Пропуск специальных регионов (vsyscall, vdso и т.д.)
-        static bool shouldSkipRegion(const MemoryRegion& region);
+        static bool ShouldSkipRegion(const MemoryRegion& region);
     };
 
-} // namespace edr
+} // namespace process_memory_dump
 
 #endif //MEMORY_MAPS_H

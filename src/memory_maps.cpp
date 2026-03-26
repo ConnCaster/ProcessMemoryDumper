@@ -3,9 +3,9 @@
 #include <sstream>
 #include <iostream>
 
-namespace edr {
+namespace process_memory_dump {
 
-std::optional<std::vector<MemoryRegion>> MemoryMapsParser::parse(pid_t pid) {
+std::optional<std::vector<MemoryRegion>> MemoryMapsParser::Parse(pid_t pid) {
     std::vector<MemoryRegion> regions;
     std::string maps_path = "/proc/" + std::to_string(pid) + "/maps";
     
@@ -45,7 +45,7 @@ std::optional<std::vector<MemoryRegion>> MemoryMapsParser::parse(pid_t pid) {
     return regions;
 }
 
-std::vector<MemoryRegion> MemoryMapsParser::filterReadable(
+std::vector<MemoryRegion> MemoryMapsParser::FilterReadable(
     const std::vector<MemoryRegion>& regions) {
     
     std::vector<MemoryRegion> result;
@@ -57,10 +57,10 @@ std::vector<MemoryRegion> MemoryMapsParser::filterReadable(
     return result;
 }
 
-bool MemoryMapsParser::shouldSkipRegion(const MemoryRegion& region) {
+bool MemoryMapsParser::ShouldSkipRegion(const MemoryRegion& region) {
     // Пропускаем проблемные регионы
     static const std::vector<std::string> skip_list = {
-        "[vsyscall]",  // Может вызвать segfault
+        "[vsyscall]",
         "[vvar]",
     };
     
@@ -73,4 +73,4 @@ bool MemoryMapsParser::shouldSkipRegion(const MemoryRegion& region) {
     return false;
 }
 
-} // namespace edr
+} // namespace process_memory_dump

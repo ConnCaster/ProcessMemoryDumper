@@ -12,7 +12,7 @@
 #include <memory>
 #include <optional>
 
-namespace edr {
+namespace process_memory_dump {
 
     // Описание региона памяти из /proc/pid/maps
     struct MemoryRegion {
@@ -24,7 +24,7 @@ namespace edr {
         bool is_private;
         std::string pathname;
 
-        size_t size() const { return end - start; }
+        size_t Size() const { return end - start; }
     };
 
     // Статистика чтения
@@ -41,25 +41,22 @@ namespace edr {
     public:
         virtual ~IMemoryReader() = default;
 
-        // Чтение памяти по адресу
-        // virtual bool read(pid_t pid, uintptr_t addr, void* buffer, size_t len) = 0;
-
         // Чтение региона памяти
-        virtual bool readRegion(pid_t pid, const MemoryRegion& region, std::vector<uint8_t>& out) = 0;
+        virtual bool ReadRegion(pid_t pid, const MemoryRegion& region, std::vector<uint8_t>& out) = 0;
 
         // Получение списка регионов памяти
-        virtual std::optional<std::vector<MemoryRegion>> getMemoryMaps(pid_t pid) = 0;
+        virtual std::optional<std::vector<MemoryRegion>> GetMemoryMaps(pid_t pid) = 0;
 
         // Полный дамп всех читаемых регионов
-        virtual bool dumpProcess(pid_t pid, const std::string& output_path) = 0;
+        virtual bool DumpProcess(pid_t pid, const std::string& output_path) = 0;
 
         // Название метода (для логирования)
-        virtual const char* getMethodName() const = 0;
+        virtual const char* GetMethodName() const = 0;
 
         // Статистика последней операции
-        virtual ReadStats getLastStats() const = 0;
+        virtual ReadStats GetLastStats() const = 0;
     };
 
-} // namespace edr
+} // namespace process_memory_dump
 
 #endif //MEMORY_READER_H

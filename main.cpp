@@ -6,17 +6,17 @@
 #include <cstdlib>
 
 // Фабрика для выбора лучшего доступного метода
-std::unique_ptr<edr::IMemoryReader> createMemoryReader() {
+std::unique_ptr<process_memory_dump::IMemoryReader> CreateMemoryReader() {
     // Приоритет 1: process_vm_readv (быстрее, Scatter-Gather)
-    if (edr::ProcessVmReader::isAvailable()) {
+    if (process_memory_dump::ProcessVmReader::isAvailable()) {
         std::cout << "Using: process_vm_readv (Scatter-Gather I/O)" << std::endl;
-        return std::make_unique<edr::ProcessVmReader>();
+        return std::make_unique<process_memory_dump::ProcessVmReader>();
     }
 
     // Приоритет 2: /proc/pid/mem (фоллбэк)
-    if (edr::ProcMemReader::isAvailable()) {
+    if (process_memory_dump::ProcMemReader::isAvailable()) {
         std::cout << "Using: /proc/pid/mem (fallback)" << std::endl;
-        return std::make_unique<edr::ProcMemReader>();
+        return std::make_unique<process_memory_dump::ProcMemReader>();
     }
 
     return nullptr;
@@ -43,20 +43,20 @@ int main(int argc, char* argv[]) {
     }
 
     // Создаем читатель через фабрику
-    auto reader = createMemoryReader();
+    auto reader = CreateMemoryReader();
     if (!reader) {
         std::cerr << "No memory reading method available!" << std::endl;
         std::cerr << "You may need CAP_SYS_PTRACE or root privileges" << std::endl;
         return 1;
     }
 
-    std::cout << "Memory Reader: " << reader->getMethodName() << std::endl;
+    std::cout << "Memory Reader: " << reader->GetMethodName() << std::endl;
     std::cout << "Target PID: " << target_pid << std::endl;
     std::cout << "Output: " << output_file << std::endl;
     std::cout << "========================================" << std::endl;
 
     // Выполняем дамп
-    if (!reader->dumpProcess(target_pid, output_file)) {
+    if (!reader->DumpProcess(target_pid, output_file)) {
         std::cerr << "Dump failed!" << std::endl;
         return 1;
     }
@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Dump completed successfully!" << std::endl;
 
     // Вывод статистики
-    auto stats = reader->getLastStats();
+    auto stats = reader->GetLastStats();
     std::cout << "\nFinal Stats:" << std::endl;
     std::cout << "  Bytes requested: " << stats.total_bytes_requested << std::endl;
     std::cout << "  Bytes read: " << stats.total_bytes_read << std::endl;

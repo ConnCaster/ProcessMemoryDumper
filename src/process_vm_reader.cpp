@@ -6,7 +6,7 @@
 #include <fstream>
 #include <iostream>
 
-namespace edr {
+namespace process_memory_dump {
 
 ProcessVmReader::ProcessVmReader() {
     resetStats();
@@ -31,13 +31,13 @@ bool ProcessVmReader::isAvailable() {
     return (ret == -1 && errno == EFAULT) || (ret >= 0);
 }
 
-bool ProcessVmReader::readRegion(pid_t pid, const MemoryRegion& region, 
+bool ProcessVmReader::ReadRegion(pid_t pid, const MemoryRegion& region,
                                   std::vector<uint8_t>& out) {
     if (!region.readable) {
         return false;
     }
 
-    out.resize(region.size());
+    out.resize(region.Size());
     
     // Scatter-Gather: один вызов на регион
     struct iovec local{out.data(), out.size()};
@@ -69,18 +69,18 @@ bool ProcessVmReader::readRegion(pid_t pid, const MemoryRegion& region,
     return true;
 }
 
-std::optional<std::vector<MemoryRegion>> ProcessVmReader::getMemoryMaps(pid_t pid) {
-    return MemoryMapsParser::parse(pid);
+std::optional<std::vector<MemoryRegion>> ProcessVmReader::GetMemoryMaps(pid_t pid) {
+    return MemoryMapsParser::Parse(pid);
 }
 
-bool ProcessVmReader::dumpProcess(pid_t pid, const std::string& output_path) {
+bool ProcessVmReader::DumpProcess(pid_t pid, const std::string& output_path) {
     resetStats();
     
-    auto regions = getMemoryMaps(pid);
+    auto regions = GetMemoryMaps(pid);
     if (!regions.has_value()) {
         return false;
     }
-    auto readable = MemoryMapsParser::filterReadable(*regions);
+    auto readable = MemoryMapsParser::FilterReadable(*regions);
     
     std::ofstream out(output_path, std::ios::binary);
     if (!out) {
@@ -88,19 +88,19 @@ bool ProcessVmReader::dumpProcess(pid_t pid, const std::string& output_path) {
         return false;
     }
 
-    std::cout << "Dumping process " << pid << " using " << getMethodName() << std::endl;
+    std::cout << "Dumping process " << pid << " using " << GetMethodName() << std::endl;
     std::cout << "Found " << regions->size() << " regions, "
               << readable.size() << " readable" << std::endl;
 
     size_t region_num = 0;
     for (const auto& region : readable) {
-        if (MemoryMapsParser::shouldSkipRegion(region)) {
+        if (MemoryMapsParser::ShouldSkipRegion(region)) {
             std::cout << "  Skipping: " << region.pathname << std::endl;
             continue;
         }
 
         std::vector<uint8_t> data;
-        if (readRegion(pid, region, data)) {
+        if (ReadRegion(pid, region, data)) {
             out.write(reinterpret_cast<const char*>(data.data()), data.size());
             std::cout << "  [" << ++region_num << "] " 
                       << std::hex << region.start << "-" << region.end 
@@ -121,4 +121,4 @@ bool ProcessVmReader::dumpProcess(pid_t pid, const std::string& output_path) {
     return true;
 }
 
-} // namespace edr
+} // namespace process_memory_dump

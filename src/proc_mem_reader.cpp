@@ -6,7 +6,7 @@
 #include <fstream>
 #include <iostream>
 
-namespace edr {
+namespace process_memory_dump {
 
 ProcMemReader::ProcMemReader() {
     resetStats();
@@ -28,9 +28,7 @@ bool ProcMemReader::isAvailable() {
     return false;
 }
 
-
-bool ProcMemReader::readRegion(pid_t pid, const MemoryRegion& region,
-                                std::vector<uint8_t>& out) {
+bool ProcMemReader::ReadRegion(pid_t pid, const MemoryRegion& region, std::vector<uint8_t>& out) {
     std::string mem_path = "/proc/" + std::to_string(pid) + "/mem";
     
     int fd = open(mem_path.c_str(), O_RDONLY);
@@ -38,7 +36,7 @@ bool ProcMemReader::readRegion(pid_t pid, const MemoryRegion& region,
         return false;
     }
 
-    out.resize(region.size());
+    out.resize(region.Size());
     last_stats_.total_bytes_requested += out.size();
     last_stats_.regions_attempted++;
 
@@ -73,39 +71,39 @@ bool ProcMemReader::readRegion(pid_t pid, const MemoryRegion& region,
     return true;
 }
 
-std::optional<std::vector<MemoryRegion>> ProcMemReader::getMemoryMaps(pid_t pid) {
-    return MemoryMapsParser::parse(pid);
+std::optional<std::vector<MemoryRegion>> ProcMemReader::GetMemoryMaps(pid_t pid) {
+    return MemoryMapsParser::Parse(pid);
 }
 
-bool ProcMemReader::dumpProcess(pid_t pid, const std::string& output_path) {
+bool ProcMemReader::DumpProcess(pid_t pid, const std::string& output_path) {
     // Реализация аналогична ProcessVmReader
     // Можно вынести в базовый класс для переиспользования
     resetStats();
     
-    auto regions = getMemoryMaps(pid);
+    auto regions = GetMemoryMaps(pid);
     if (!regions.has_value()) {
         return false;
     }
-    auto readable = MemoryMapsParser::filterReadable(*regions);
+    auto readable = MemoryMapsParser::FilterReadable(*regions);
     
     std::ofstream out(output_path, std::ios::binary);
     if (!out) {
         return false;
     }
 
-    std::cout << "Dumping process " << pid << " using " << getMethodName() << std::endl;
+    std::cout << "Dumping process " << pid << " using " << GetMethodName() << std::endl;
     std::cout << "Found " << regions->size() << " regions, "
               << readable.size() << " readable" << std::endl;
 
     size_t region_num = 0;
     for (const auto& region : readable) {
-        if (MemoryMapsParser::shouldSkipRegion(region)) {
+        if (MemoryMapsParser::ShouldSkipRegion(region)) {
             std::cout << "  Skipping: " << region.pathname << std::endl;
             continue;
         }
 
         std::vector<uint8_t> data;
-        if (readRegion(pid, region, data)) {
+        if (ReadRegion(pid, region, data)) {
             out.write(reinterpret_cast<const char*>(data.data()), data.size());
             std::cout << "  [" << ++region_num << "] "
                       << std::hex << region.start << "-" << region.end
@@ -126,4 +124,4 @@ bool ProcMemReader::dumpProcess(pid_t pid, const std::string& output_path) {
     return true;
 }
 
-} // namespace edr
+} // namespace process_memory_dump
