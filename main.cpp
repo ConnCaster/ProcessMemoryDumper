@@ -1,76 +1,78 @@
-#include "memory_reader.h"
-#include "process_vm_reader.h"
-#include "proc_mem_reader.h"
+#include "process_memory_dumper/memory_reader.h"
+#include "process_memory_dumper/proc_mem_reader.h"
+#include "process_memory_dumper/process_vm_reader.h"
+
+#include <cstdlib>
 #include <iostream>
 #include <memory>
-#include <cstdlib>
+#include <string>
 
-// Фабрика для выбора лучшего доступного метода
-std::unique_ptr<process_memory_dump::IMemoryReader> CreateMemoryReader() {
-    // Приоритет 1: process_vm_readv (быстрее, Scatter-Gather)
-    if (process_memory_dump::ProcessVmReader::isAvailable()) {
-        std::cout << "Using: process_vm_readv (Scatter-Gather I/O)" << std::endl;
-        return std::make_unique<process_memory_dump::ProcessVmReader>();
+namespace process_memory_dump {
+
+std::unique_ptr<IMemoryReader> CreateMemoryReader(pid_t target_pid) {
+    if (ProcessVmReader::CanAccessProcess(target_pid)) {
+        std::cout << "Using: process_vm_readv\n";
+        return std::make_unique<ProcessVmReader>();
     }
 
-    // Приоритет 2: /proc/pid/mem (фоллбэк)
-    if (process_memory_dump::ProcMemReader::isAvailable()) {
-        std::cout << "Using: /proc/pid/mem (fallback)" << std::endl;
-        return std::make_unique<process_memory_dump::ProcMemReader>();
+    if (ProcMemReader::CanAccessProcess(target_pid)) {
+        std::cout << "Using: /proc/pid/mem (fallback)\n";
+        return std::make_unique<ProcMemReader>();
     }
 
     return nullptr;
 }
 
-void printUsage(const char* prog) {
-    std::cout << "Usage: " << prog << " <pid> [output_file]" << std::endl;
-    std::cout << "  pid         - Target process ID" << std::endl;
-    std::cout << "  output_file - Optional dump output path" << std::endl;
+} // namespace process_memory_dump
+
+void PrintUsage(const char* prog) {
+    std::cout << "Usage: " << prog << " <pid> [output_file]\n";
+    std::cout << "  pid         - Target process ID\n";
+    std::cout << "  output_file - Optional dump output path (default: dump.bin)\n";
 }
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        printUsage(argv[0]);
+        PrintUsage(argv[0]);
         return 1;
     }
 
-    pid_t target_pid = std::atoi(argv[1]);
-    std::string output_file = (argc >= 3) ? argv[2] : "dump.bin";
+    const pid_t target_pid = static_cast<pid_t>(std::atoi(argv[1]));
+    const std::string output_file = (argc >= 3) ? argv[2] : "dump.bin";
 
     if (target_pid <= 0) {
-        std::cerr << "Invalid PID" << std::endl;
+        std::cerr << "Invalid PID\n";
         return 1;
     }
 
-    // Создаем читатель через фабрику
-    auto reader = CreateMemoryReader();
+    auto reader = process_memory_dump::CreateMemoryReader(target_pid);
     if (!reader) {
-        std::cerr << "No memory reading method available!" << std::endl;
-        std::cerr << "You may need CAP_SYS_PTRACE or root privileges" << std::endl;
+        std::cerr << "No usable memory reading method for PID " << target_pid << '\n';
+        std::cerr << "You may need CAP_SYS_PTRACE, root privileges, or a compatible ptrace_scope policy\n";
         return 1;
     }
 
-    std::cout << "Memory Reader: " << reader->GetMethodName() << std::endl;
-    std::cout << "Target PID: " << target_pid << std::endl;
-    std::cout << "Output: " << output_file << std::endl;
-    std::cout << "========================================" << std::endl;
+    std::cout << "Memory Reader: " << reader->GetMethodName() << '\n';
+    std::cout << "Target PID: " << target_pid << '\n';
+    std::cout << "Output: " << output_file << '\n';
+    std::cout << "Metadata: " << output_file << ".map\n";
+    std::cout << "========================================\n";
 
-    // Выполняем дамп
     if (!reader->DumpProcess(target_pid, output_file)) {
-        std::cerr << "Dump failed!" << std::endl;
+        std::cerr << "Dump failed!\n";
         return 1;
     }
 
-    std::cout << "========================================" << std::endl;
-    std::cout << "Dump completed successfully!" << std::endl;
+    std::cout << "========================================\n";
+    std::cout << "Dump completed successfully!\n";
 
-    // Вывод статистики
-    auto stats = reader->GetLastStats();
-    std::cout << "\nFinal Stats:" << std::endl;
-    std::cout << "  Bytes requested: " << stats.total_bytes_requested << std::endl;
-    std::cout << "  Bytes read: " << stats.total_bytes_read << std::endl;
+    const auto stats = reader->GetLastStats();
+    std::cout << "\nFinal Stats:\n";
+    std::cout << "  Bytes requested: " << stats.total_bytes_requested << '\n';
+    std::cout << "  Bytes read: " << stats.total_bytes_read << '\n';
+    std::cout << "  Zero-filled bytes: " << stats.total_bytes_zero_filled << '\n';
     std::cout << "  Regions: " << stats.regions_success
-              << "/" << stats.regions_attempted << " successful" << std::endl;
+              << "/" << stats.regions_attempted << " successful\n";
 
     return 0;
 }
